@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans    
+	xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:beans="http://www.springframework.org/schema/beans" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:jee="http://www.springframework.org/schema/jee"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:aop="http://www.springframework.org/schema/aop" 
+    xmlns:util="http://www.springframework.org/schema/util"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.1.xsd
+        http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.1.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.1.xsd
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.1.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.1.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.1.xsd
+    ">
+
+    <tx:annotation-driven/>
+    <context:annotation-config /> 
+    <context:component-scan base-package="com.intsol.SifiInventario" />
+
+	<!-- Password encryption option -->
+    <bean class="org.springframework.security.authentication.encoding.ShaPasswordEncoder" id="passwordEncoder" />
+    
+    <!--  Get the JDBC out of the tomcat connection pool -->	
+	<jee:jndi-lookup jndi-name="/jdbc/SifiInventario" id="dataSource" resource-ref="true"/>
+
+    <!--    Encrypt the plain text passwords and save them to the DB. -->
+     <bean class="com.intsol.SifiInventario.dao.impl.CustomJdbcDaoImpl" init-method="secureDatabase" depends-on="dataSource">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- Authentication bean --> 
+    <bean id="authenticationDAO" class="org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="usersByUsernameQuery">
+            <value>
+                SELECT US_USER, US_PASSWORD, 1
+                FROM IVUSUARIO
+                WHERE US_USER = ? AND US_STATUS = 'A'
+            </value>
+        </property>
+        <property name="authoritiesByUsernameQuery">
+	        <value>
+	           SELECT US_USER, 'ROLE_USER'
+	           FROM IVUSUARIO
+	           WHERE US_USER = ?    
+	        </value>
+        </property>
+    </bean>
+
+    <bean id="mySessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+       <property name="dataSource" ref="dataSource"/>
+       <property name="annotatedClasses">
+       <list>
+           <value>com.intsol.SifiInventario.domain.IvAdeudo</value>
+           <value>com.intsol.SifiInventario.domain.IvBien</value>
+           <value>com.intsol.SifiInventario.domain.IvCuentaContable</value>
+           <value>com.intsol.SifiInventario.domain.IvDependencia</value>
+           <value>com.intsol.SifiInventario.domain.IvDepreciacionProducto</value>
+           <value>com.intsol.SifiInventario.domain.IvDiario</value>
+           <value>com.intsol.SifiInventario.domain.IvEmpleado</value>
+           <value>com.intsol.SifiInventario.domain.IvEmpresa</value>          
+           <value>com.intsol.SifiInventario.domain.IvHistoricoMovimiento</value>
+           <value>com.intsol.SifiInventario.domain.IvMetaCampo</value>
+           <value>com.intsol.SifiInventario.domain.IvMetaTabla</value>
+           <value>com.intsol.SifiInventario.domain.IvPoliza</value>
+           <value>com.intsol.SifiInventario.domain.IvProveedor</value>
+           <value>com.intsol.SifiInventario.domain.IvReparacion</value>
+           <value>com.intsol.SifiInventario.domain.IvResguardo</value>
+           <value>com.intsol.SifiInventario.domain.IvUsuario</value>
+           
+       </list>
+       </property>
+       
+       <property name="hibernateProperties">
+       <props>
+           <prop key="hibernate.dialect">org.hibernate.dialect.Oracle10gDialect</prop>
+<!--       <prop key="hibernate.dialect">org.hibernate.dialect.MySQL5Dialect</prop> -->
+<!--       <prop key="hibernate.current_session_context_class">thread</prop>
+           para @Transaction no usar  CurrentSession sino crear tus propias sessiones. --> 
+           <prop key="hibernate.cache.use_second_level_cache">false</prop>
+           <prop key="hibernate.cache.use.query_cache">false</prop>
+           <prop key="hibernate.show_sql">false</prop>
+           <prop key="hbm2ddl.auto">update</prop>
+           <prop key="hibernate.connection.autocommit">true</prop>
+           <prop key="hibernate.statement_cache.size">0</prop>
+           <prop key="hibernate.jdbc.batch_size">30</prop>
+    
+       </props>
+       </property>
+    </bean>
+    
+    	<!--  Transaction manager -->
+    <bean id="transactionManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager" p:sessionFactory-ref="mySessionFactory">  
+<!--       <property name="sessionFactory" ref="mySessionFactory" />  
+      <property name="dataSource" ref="dataSource"/>
+ -->
+     </bean>
+    
+    <!-- Bean para manejar el perfil a nivel session -->
+    <bean id="Perfil" class="com.intsol.SifiInventario.beans.Perfil" scope="session">
+    	<aop:scoped-proxy/>		
+    	
+<!-- 		Esta instrucción permite a los DAO que son un singleton a bean Perfil que es 
+    	a nivel session. El proxy se encarga de hacer la propia inyección del objeto
+    	Perfil(session) a los DAO (singletons).
+ -->    
+ 	</bean>
+
+</beans>
